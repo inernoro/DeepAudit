@@ -1069,3 +1069,25 @@
     width: 100%;
   }
 }
+
+/* CDS keeps the upstream layout and color tokens while prioritizing readable UI. */
+.cds-static-review body,
+.cds-static-review :where(.font-mono, h1, h2, h3, h4, h5, h6, p, a, span, button, input, textarea, label, select, summary, small) {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "Microsoft YaHei", sans-serif !important;
+}
+.cds-static-review :is(pre, code, pre *, code *),
+.cds-static-review :is(pre, code).font-mono,
+.cds-static-review :is(pre, code) .font-mono {
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace !important;
+}
+.cds-static-review .uppercase {
+  text-transform: none;
+  letter-spacing: normal;
+}
+.cds-static-review :is(.cyber-grid, .cyber-grid-subtle),
+.cds-static-review aside [style*="background-image"] {
+  background-image: none !important;
+}
+.cds-static-review [style*="text-shadow"] {
+  text-shadow: none !important;
+}

@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { Toaster } from "sonner";
 import Sidebar from "@/components/layout/Sidebar";
 import routes from "./routes";
+import { isCdsStaticReview } from "@/shared/config/runtime";
 import { AuthProvider } from "@/shared/context/AuthContext";
 import { ProtectedRoute } from "./ProtectedRoute";
 import Login from "@/pages/Login";
@@ -26,6 +27,12 @@ function AppLayout() {
 }
 
 function App() {
+  useEffect(() => {
+    if (!isCdsStaticReview) return;
+    document.documentElement.classList.add("cds-static-review");
+    return () => document.documentElement.classList.remove("cds-static-review");
+  }, []);
+
   return (
     <AuthProvider>
       <BrowserRouter>

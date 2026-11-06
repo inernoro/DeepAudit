@@ -9,6 +9,7 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/shared/config/database";
+import { isCdsStaticReview } from "@/shared/config/runtime";
 import { getRuleSets, type AuditRuleSet } from "@/shared/api/rules";
 import { getPromptTemplates, type PromptTemplate } from "@/shared/api/prompts";
 import { createAgentTask } from "@/shared/api/agentTasks";
@@ -99,7 +101,7 @@ export default function CreateTaskDialog({
   const [creating, setCreating] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  const [auditMode, setAuditMode] = useState<AuditMode>("agent");
+  const [auditMode, setAuditMode] = useState<AuditMode>(isCdsStaticReview ? "fast" : "agent");
 
   const [ruleSets, setRuleSets] = useState<AuditRuleSet[]>([]);
   const [promptTemplates, setPromptTemplates] = useState<PromptTemplate[]>([]);
@@ -213,7 +215,7 @@ export default function CreateTaskDialog({
       setCreating(true);
       let taskId: string;
 
-      if (auditMode === "agent") {
+      if (!isCdsStaticReview && auditMode === "agent") {
         const agentTask = await createAgentTask({
           project_id: selectedProject.id,
           name: `Agent审计-${selectedProject.name}`,
@@ -320,6 +322,9 @@ export default function CreateTaskDialog({
                 </p>
               </div>
             </DialogTitle>
+            <DialogDescription>
+              {isCdsStaticReview ? "逐文件静态与 AI 分析，不运行项目脚本或沙箱验证。" : "选择项目和审计模式后配置本次代码审计。"}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto p-5 space-y-5">
@@ -374,7 +379,7 @@ export default function CreateTaskDialog({
             </div>
 
             {/* 审计模式选择 */}
-            {selectedProject && (
+            {selectedProject && !isCdsStaticReview && (
               <AgentModeSelector
                 value={auditMode}
                 onChange={setAuditMode}
@@ -631,7 +636,7 @@ export default function CreateTaskDialog({
               ) : (
                 <>
                   <Zap className="w-4 h-4 mr-2" />
-                  开始快速扫描
+                  {isCdsStaticReview ? "开始静态审查" : "开始快速扫描"}
                 </>
               )}
             </Button>

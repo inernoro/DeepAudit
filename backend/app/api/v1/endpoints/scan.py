@@ -20,6 +20,7 @@ from app.models.project import Project
 from app.models.analysis import InstantAnalysis
 from app.models.user_config import UserConfig
 from app.services.llm.service import LLMService
+from app.services.scan_errors import record_scan_error
 from app.services.scanner import task_control, is_text_file, should_exclude, get_language_from_path, get_analysis_config
 from app.services.zip_storage import load_project_zip, save_project_zip, has_project_zip
 from app.core.config import settings
@@ -51,7 +52,10 @@ async def process_zip_task(task_id: str, file_path: str, db_session_factory, use
         if not task:
             return
 
+        extract_dir = Path(f"/tmp/{task_id}")
         try:
+            task.error_code = None
+            task.error_message = None
             task.status = "running"
             task.started_at = datetime.now(timezone.utc)
             await db.commit()
@@ -60,7 +64,6 @@ async def process_zip_task(task_id: str, file_path: str, db_session_factory, use
             llm_service = LLMService(user_config=user_config or {})
 
             # Extract ZIP
-            extract_dir = Path(f"/tmp/{task_id}")
             extract_dir.mkdir(parents=True, exist_ok=True)
             
             with zipfile.ZipFile(file_path, 'r') as zip_ref:
@@ -186,8 +189,10 @@ async def process_zip_task(task_id: str, file_path: str, db_session_factory, use
                     await asyncio.sleep(llm_gap_ms / 1000)
 
                 except Exception as file_error:
+                    record_scan_error(task, file_error)
+                    await db.commit()
                     failed_files += 1
-                    print(f"❌ ZIP任务分析文件失败 ({file_info['path']}): {file_error}")
+                    print(f"❌ ZIP任务分析文件失败 ({file_info['path']}): {task.error_code}")
                     await asyncio.sleep(llm_gap_ms / 1000)
 
             # 完成任务
@@ -195,6 +200,7 @@ async def process_zip_task(task_id: str, file_path: str, db_session_factory, use
             
             # 如果有文件需要分析但全部失败，标记为失败
             if len(files_to_scan) > 0 and scanned_files == 0:
+                record_scan_error(task)
                 task.status = "failed"
                 task.completed_at = datetime.now(timezone.utc)
                 task.scanned_files = 0
@@ -215,7 +221,8 @@ async def process_zip_task(task_id: str, file_path: str, db_session_factory, use
             task_control.cleanup_task(task_id)
             
         except Exception as e:
-            print(f"❌ ZIP扫描失败: {e}")
+            record_scan_error(task, e)
+            print(f"❌ ZIP扫描失败: {task.error_code}")
             task.status = "failed"
             task.completed_at = datetime.now(timezone.utc)
             await db.commit()

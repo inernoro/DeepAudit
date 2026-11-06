@@ -14,6 +14,8 @@ class AuditTask(Base):
     
     task_type = Column(String, nullable=False)
     status = Column(String, default="pending", index=True)
+    error_code = Column(String(64), nullable=True)
+    error_message = Column(Text, nullable=True)
     branch_name = Column(String, nullable=True)
     
     exclude_patterns = Column(Text, default="[]")

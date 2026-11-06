@@ -6,6 +6,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DatabaseManager } from "@/components/database/DatabaseManager";
 import { SystemConfig } from "@/components/system/SystemConfig";
+import { isCdsStaticReview } from "@/shared/config/runtime";
 import { Settings, Database, Terminal } from "lucide-react";
 
 export default function AdminDashboard() {
@@ -26,7 +27,7 @@ export default function AdminDashboard() {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="config" className="w-full relative z-10">
-        <TabsList className="grid w-full grid-cols-2 bg-muted border border-border p-1 h-auto gap-1 rounded-lg mb-6">
+        <TabsList className={`grid w-full ${isCdsStaticReview ? "grid-cols-1" : "grid-cols-2"} bg-muted border border-border p-1 h-auto gap-1 rounded-lg mb-6`}>
           <TabsTrigger
             value="config"
             className="data-[state=active]:bg-primary data-[state=active]:text-foreground font-mono font-bold uppercase py-3 text-muted-foreground transition-all rounded text-sm flex items-center gap-2"
@@ -34,13 +35,13 @@ export default function AdminDashboard() {
             <Settings className="w-4 h-4" />
             系统配置
           </TabsTrigger>
-          <TabsTrigger
+          {!isCdsStaticReview && <TabsTrigger
             value="data"
             className="data-[state=active]:bg-primary data-[state=active]:text-foreground font-mono font-bold uppercase py-3 text-muted-foreground transition-all rounded text-sm flex items-center gap-2"
           >
             <Database className="w-4 h-4" />
             数据管理
-          </TabsTrigger>
+          </TabsTrigger>}
         </TabsList>
 
         {/* System Config */}
@@ -49,9 +50,9 @@ export default function AdminDashboard() {
         </TabsContent>
 
         {/* Data Management */}
-        <TabsContent value="data" className="space-y-6">
+        {!isCdsStaticReview && <TabsContent value="data" className="space-y-6">
           <DatabaseManager />
-        </TabsContent>
+        </TabsContent>}
       </Tabs>
     </div>
   );

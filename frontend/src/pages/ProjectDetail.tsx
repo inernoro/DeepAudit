@@ -29,6 +29,7 @@ import {
   Terminal
 } from "lucide-react";
 import { api } from "@/shared/config/database";
+import { isCdsStaticReview } from "@/shared/config/runtime";
 import type { Project, AuditTask, CreateProjectForm, AuditIssue } from "@/shared/types";
 import type { AgentFinding, AgentTask } from "@/shared/api/agentTasks";
 import { getAgentTasks, updateAgentFinding } from "@/shared/api/agentTasks";
@@ -397,7 +398,7 @@ export default function ProjectDetail() {
       const [projectRes, auditTasksRes, agentTasksRes] = await Promise.allSettled([
         api.getProjectById(id),
         api.getAuditTasks(id),
-        getAgentTasks({ project_id: id })
+        isCdsStaticReview ? Promise.resolve<AgentTask[]>([]) : getAgentTasks({ project_id: id })
       ]);
 
       if (projectRes.status === 'fulfilled') {

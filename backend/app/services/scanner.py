@@ -13,6 +13,7 @@ from app.utils.repo_utils import parse_repository_url
 from app.models.audit import AuditTask, AuditIssue
 from app.models.project import Project
 from app.services.llm.service import LLMService
+from app.services.scan_errors import record_scan_error
 from app.core.config import settings
 
 
@@ -310,6 +311,8 @@ async def scan_repo_task(task_id: str, db_session_factory, user_config: dict = N
 
         try:
             # 1. 更新状态为运行中
+            task.error_code = None
+            task.error_message = None
             task.status = "running"
             task.started_at = datetime.now(timezone.utc)
             await db.commit()
@@ -602,13 +605,11 @@ async def scan_repo_task(task_id: str, db_session_factory, user_config: dict = N
                     await asyncio.sleep(llm_gap_ms / 1000)
                     
                 except Exception as file_error:
+                    record_scan_error(task, file_error)
+                    await db.commit()
                     failed_files += 1
                     consecutive_failures += 1
-                    # 打印详细错误信息
-                    import traceback
-                    print(f"❌ 分析文件失败 ({file_info['path']}): {file_error}")
-                    print(f"   错误类型: {type(file_error).__name__}")
-                    print(f"   详细信息: {traceback.format_exc()}")
+                    print(f"❌ 分析文件失败 ({file_info['path']}): {task.error_code}")
                     await asyncio.sleep(llm_gap_ms / 1000)
 
             # 5. 完成任务
@@ -627,6 +628,7 @@ async def scan_repo_task(task_id: str, db_session_factory, user_config: dict = N
                 print(f"⚠️ 任务 {task_id} 完成: 所有 {len(files)} 个文件均为空或被跳过，无需分析")
             # 如果有文件需要分析但全部失败（LLM调用失败），标记为失败
             elif len(files) > 0 and scanned_files == 0 and failed_files > 0:
+                record_scan_error(task)
                 task.status = "failed"
                 task.completed_at = datetime.now(timezone.utc)
                 task.scanned_files = 0
@@ -647,7 +649,8 @@ async def scan_repo_task(task_id: str, db_session_factory, user_config: dict = N
             task_control.cleanup_task(task_id)
 
         except Exception as e:
-            print(f"❌ 扫描失败: {e}")
+            record_scan_error(task, e)
+            print(f"❌ 扫描失败: {task.error_code}")
             task.status = "failed"
             task.completed_at = datetime.now(timezone.utc)
             await db.commit()

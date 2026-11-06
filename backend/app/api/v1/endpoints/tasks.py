@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from datetime import datetime, timezone
 
 from app.api import deps
@@ -12,6 +12,7 @@ from app.models.audit import AuditTask, AuditIssue
 from app.models.project import Project
 from app.models.user import User
 from app.services.scanner import task_control
+from app.services.scan_errors import ERROR_MESSAGES
 
 router = APIRouter()
 
@@ -67,6 +68,8 @@ class AuditTaskSchema(BaseModel):
     project_id: str
     task_type: str
     status: str
+    error_code: Optional[str] = None
+    error_message: Optional[str] = None
     branch_name: Optional[str] = None
     exclude_patterns: Optional[str] = None
     scan_config: Optional[str] = None
@@ -81,6 +84,12 @@ class AuditTaskSchema(BaseModel):
     created_at: datetime
     project: Optional[ProjectSchema] = None
     
+    @model_validator(mode="after")
+    def sanitize_failure_details(self):
+        self.error_code = self.error_code if self.error_code in ERROR_MESSAGES else None
+        self.error_message = ERROR_MESSAGES.get(self.error_code)
+        return self
+
     class Config:
         from_attributes = True
 

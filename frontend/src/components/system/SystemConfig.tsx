@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/shared/api/database";
+import { isCdsStaticReview } from "@/shared/config/runtime";
 import EmbeddingConfig from "@/components/agent/EmbeddingConfig";
 import { generateSSHKey, getSSHKey, deleteSSHKey, testSSHKey, clearKnownHosts } from "@/shared/api/sshKeys";
 
@@ -69,7 +70,7 @@ export function SystemConfig() {
   const [testRepoUrl, setTestRepoUrl] = useState("");
   const [showDeleteKeyDialog, setShowDeleteKeyDialog] = useState(false);
 
-  useEffect(() => { loadConfig(); loadSSHKey(); }, []);
+  useEffect(() => { loadConfig(); if (!isCdsStaticReview) loadSSHKey(); }, []);
 
   const loadConfig = async () => {
     try {
@@ -78,7 +79,6 @@ export function SystemConfig() {
 
       const backendConfig = await api.getUserConfig();
 
-      console.log('[SystemConfig] 后端返回的原始数据:', JSON.stringify(backendConfig, null, 2));
 
       if (backendConfig) {
         const llmConfig = backendConfig.llmConfig || {};
@@ -107,7 +107,6 @@ export function SystemConfig() {
           outputLanguage: otherConfig.outputLanguage || 'zh-CN',
         };
 
-        console.log('[SystemConfig] 解析后的配置:', newConfig);
         setConfig(newConfig);
 
         console.log('✓ 配置已加载:', {
@@ -383,13 +382,13 @@ export function SystemConfig() {
       </div>
 
       <Tabs defaultValue="llm" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 bg-muted border border-border p-1 h-auto gap-1 rounded-lg mb-6">
+        <TabsList className={`grid w-full ${isCdsStaticReview ? "grid-cols-3" : "grid-cols-4"} bg-muted border border-border p-1 h-auto gap-1 rounded-lg mb-6`}>
           <TabsTrigger value="llm" className="data-[state=active]:bg-primary data-[state=active]:text-foreground font-mono font-bold uppercase py-2.5 text-muted-foreground transition-all rounded text-xs flex items-center gap-2">
             <Zap className="w-3 h-3" /> LLM 配置
           </TabsTrigger>
-          <TabsTrigger value="embedding" className="data-[state=active]:bg-primary data-[state=active]:text-foreground font-mono font-bold uppercase py-2.5 text-muted-foreground transition-all rounded text-xs flex items-center gap-2">
+          {!isCdsStaticReview && <TabsTrigger value="embedding" className="data-[state=active]:bg-primary data-[state=active]:text-foreground font-mono font-bold uppercase py-2.5 text-muted-foreground transition-all rounded text-xs flex items-center gap-2">
             <Brain className="w-3 h-3" /> 嵌入模型
-          </TabsTrigger>
+          </TabsTrigger>}
           <TabsTrigger value="analysis" className="data-[state=active]:bg-primary data-[state=active]:text-foreground font-mono font-bold uppercase py-2.5 text-muted-foreground transition-all rounded text-xs flex items-center gap-2">
             <Settings className="w-3 h-3" /> 分析参数
           </TabsTrigger>
@@ -648,6 +647,7 @@ export function SystemConfig() {
               </div>
 
               {/* Agent超时配置 */}
+              {!isCdsStaticReview && <>
               <div className="mt-6 mb-2">
                 <span className="text-xs text-muted-foreground uppercase font-semibold">Agent 超时配置</span>
               </div>
@@ -703,6 +703,7 @@ export function SystemConfig() {
                   <p className="text-xs text-muted-foreground">整个Agent审计任务的最大时间</p>
                 </div>
               </div>
+              </>}
             </details>
           </div>
 
@@ -719,9 +720,9 @@ export function SystemConfig() {
         </TabsContent>
 
         {/* Embedding Config */}
-        <TabsContent value="embedding" className="space-y-6">
+        {!isCdsStaticReview && <TabsContent value="embedding" className="space-y-6">
           <EmbeddingConfig />
-        </TabsContent>
+        </TabsContent>}
 
         {/* Analysis Parameters */}
         <TabsContent value="analysis" className="space-y-6">
@@ -836,7 +837,7 @@ export function SystemConfig() {
           </div>
 
           {/* SSH Key Management */}
-          <div className="cyber-card p-6 space-y-4">
+          {!isCdsStaticReview && <div className="cyber-card p-6 space-y-4">
             <div className="flex items-center gap-3 mb-2">
               <Key className="w-5 h-5 text-emerald-400" />
               <h3 className="text-lg font-bold uppercase tracking-wider text-foreground">SSH 密钥管理</h3>
@@ -987,7 +988,7 @@ export function SystemConfig() {
                 </div>
               </div>
             )}
-          </div>
+          </div>}
         </TabsContent>
       </Tabs>
 
