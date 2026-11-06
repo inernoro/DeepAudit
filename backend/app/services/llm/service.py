@@ -10,6 +10,7 @@ from typing import Dict, Any, Optional, List
 from .types import LLMConfig, LLMProvider, LLMMessage, LLMRequest, DEFAULT_MODELS
 from .factory import LLMFactory, NATIVE_ONLY_PROVIDERS
 from app.core.config import settings
+from app.services.scan_errors import classify_scan_error
 
 # json-repair 库用于修复损坏的 JSON
 try:
@@ -391,7 +392,6 @@ Please analyze the following code:
             
             # 记录 LLM 原始响应（用于调试）
             logger.info(f"📥 LLM 原始响应长度: {len(content) if content else 0} 字符")
-            logger.info(f"📥 LLM 原始响应内容:\n{content}")
             
             # 检查响应内容是否为空
             if not content or not content.strip():
@@ -416,7 +416,7 @@ Please analyze the following code:
             return result
             
         except Exception as e:
-            logger.error(f"LLM Analysis failed: {e}", exc_info=True)
+            logger.error("LLM analysis failed: %s", classify_scan_error(e))
             logger.error(f"Provider: {self.config.provider.value}, Model: {self.config.model}")
             # 重新抛出异常，让调用者处理
             raise
@@ -691,15 +691,13 @@ Please analyze the following code:
             except Exception as e:
                 last_error = e
                 if i == 0:
-                    logger.debug(f"直接解析失败，尝试其他方法... {e}")
+                    logger.debug("JSON parser attempt failed: %s", type(e).__name__)
         
         # 所有尝试都失败
         logger.error("❌ 无法解析LLM响应为JSON")
         logger.error(f"原始内容长度: {len(text)} 字符")
-        logger.error(f"原始内容（前500字符）: {text[:500]}")
-        logger.error(f"原始内容（后500字符）: {text[-500:] if len(text) > 500 else text}")
         if last_error:
-            logger.error(f"最后错误: {type(last_error).__name__}: {str(last_error)}")
+            logger.error("Parser error type: %s", type(last_error).__name__)
         # 抛出异常而不是返回默认响应
         raise ValueError(f"无法解析LLM响应为有效的JSON格式: {str(last_error) if last_error else '未知错误'}")
     
@@ -1011,37 +1009,20 @@ Please analyze the following code:
             return result
             
         except Exception as e:
-            logger.error(f"Custom prompt analysis failed: {e}", exc_info=True)
+            logger.error("Custom prompt analysis failed: %s", classify_scan_error(e))
             raise
 
-    async def analyze_code_with_rules(
-        self, 
-        code: str, 
-        language: str,
-        rule_set_id: Optional[str] = None,
-        prompt_template_id: Optional[str] = None,
-        db_session = None,
-        use_default_template: bool = True
-    ) -> Dict[str, Any]:
-        """
-        使用指定的规则集和提示词模板分析代码
-        
-        Args:
-            code: 要分析的代码
-            language: 编程语言
-            rule_set_id: 规则集ID（可选）
-            prompt_template_id: 提示词模板ID（可选）
-            db_session: 数据库会话
-            use_default_template: 当没有指定模板时是否使用数据库中的默认模板
-        """
+    async def load_analysis_context(self, db_session, rule_set_id=None,
+                                    prompt_template_id=None, use_default_template=True):
+        """Read immutable prompt/rule values without making a model request."""
         custom_prompt = None
         rules = None
-        
+
         if db_session:
             from sqlalchemy.future import select
             from sqlalchemy.orm import selectinload
             from app.models.prompt_template import PromptTemplate
-            
+
             # 获取提示词模板
             if prompt_template_id:
                 result = await db_session.execute(
@@ -1065,7 +1046,7 @@ Please analyze the following code:
                     output_language = self._get_output_language()
                     custom_prompt = template.content_zh if output_language == 'zh-CN' else template.content_en
                     logger.info(f"📋 使用默认提示词模板: {template.name}")
-            
+
             # 获取规则集
             if rule_set_id:
                 from app.models.audit_rule import AuditRuleSet
@@ -1088,11 +1069,36 @@ Please analyze the following code:
                         }
                         for r in rule_set.rules if r.enabled
                     ]
-        
+
+        return custom_prompt, rules
+
+    async def analyze_code_with_rules(
+        self,
+        code: str,
+        language: str,
+        rule_set_id: Optional[str] = None,
+        prompt_template_id: Optional[str] = None,
+        db_session = None,
+        use_default_template: bool = True
+    ) -> Dict[str, Any]:
+        """
+        使用指定的规则集和提示词模板分析代码
+
+        Args:
+            code: 要分析的代码
+            language: 编程语言
+            rule_set_id: 规则集ID（可选）
+            prompt_template_id: 提示词模板ID（可选）
+            db_session: 数据库会话
+            use_default_template: 当没有指定模板时是否使用数据库中的默认模板
+        """
+        custom_prompt, rules = await self.load_analysis_context(
+            db_session, rule_set_id, prompt_template_id, use_default_template)
+
         # 如果有自定义提示词，使用自定义分析
         if custom_prompt:
             return await self.analyze_code_with_custom_prompt(code, language, custom_prompt, rules)
-        
+
         # 否则使用硬编码的默认分析（兜底）
         return await self.analyze_code(code, language)
 

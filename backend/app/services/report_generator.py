@@ -497,7 +497,8 @@ class ReportGenerator:
             'report_id': f"TASK-{task.get('id', '')[:8]}",
             'score': score,
             'stats': [
-                ('扫描文件', task.get('scanned_files', 0)),
+                ('已分析 / 目标文件', f"{task.get('scanned_files', 0)} / {task.get('total_files', 0)}"),
+                ('失败 / 跳过文件', f"{task.get('failed_files', 0)} / {task.get('skipped_files', 0)}"),
                 ('代码行数', f"{task.get('total_lines', 0):,}"),
                 ('问题总数', len(issues))
             ],

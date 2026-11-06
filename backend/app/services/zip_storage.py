@@ -5,6 +5,8 @@ ZIP文件存储服务
 
 import os
 import shutil
+import asyncio
+import uuid
 from pathlib import Path
 from typing import Optional
 from datetime import datetime, timezone
@@ -45,7 +47,13 @@ async def save_project_zip(project_id: str, file_path: str, original_filename: s
     meta_path = get_project_zip_meta_path(project_id)
     
     # 复制文件到存储目录
-    shutil.copy2(file_path, target_path)
+    temporary = target_path.with_name(f".{project_id}.{uuid.uuid4().hex}.part")
+    temporary.touch(mode=0o600)
+    try:
+        await asyncio.to_thread(shutil.copyfile, file_path, temporary)
+        os.replace(temporary, target_path)
+    finally:
+        temporary.unlink(missing_ok=True)
     
     # 获取文件大小
     file_size = os.path.getsize(target_path)

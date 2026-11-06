@@ -4,7 +4,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime, timezone
 import shutil
 import os
@@ -491,6 +491,11 @@ class ScanRequest(BaseModel):
     full_scan: bool = True
     exclude_patterns: Optional[List[str]] = None
     branch_name: Optional[str] = None
+    rule_set_id: Optional[str] = None
+    prompt_template_id: Optional[str] = None
+    max_analyze_files: Optional[int] = Field(None, ge=0)
+    llm_concurrency: Optional[int] = Field(None, ge=1, le=8)
+    llm_gap_ms: Optional[int] = Field(None, ge=0)
 
 
 @router.post("/{id}/scan")
@@ -507,6 +512,9 @@ async def scan_project(
     project = await db.get(Project, id)
     if not project:
         raise HTTPException(status_code=404, detail="项目不存在")
+
+    if project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="无权审查此项目")
 
     # 获取分支和排除模式
     branch_name = scan_request.branch_name if scan_request else None
@@ -562,13 +570,12 @@ async def scan_project(
         }
 
     # 将扫描配置注入到 user_config 中，以便 scan_repo_task 使用
-    if scan_request and scan_request.file_paths:
-        user_config['scan_config'] = {'file_paths': scan_request.file_paths}
+    user_config['scan_config'] = scan_request.model_dump(exclude_none=True) if scan_request else {}
+    task_id = task.id
+    await db.close()
+    background_tasks.add_task(scan_repo_task, task_id, AsyncSessionLocal, user_config)
 
-    # Trigger Background Task
-    background_tasks.add_task(scan_repo_task, task.id, AsyncSessionLocal, user_config)
-
-    return {"task_id": task.id, "status": "started"}
+    return {"task_id": task_id, "status": "started"}
 
 
 # ============ ZIP文件管理端点 ============
