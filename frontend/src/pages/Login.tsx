@@ -70,7 +70,7 @@ export default function Login() {
       } else if (typeof detail === 'object') {
         toast.error(detail.msg || detail.message || JSON.stringify(detail));
       } else {
-        toast.error(detail || "登录失败，请检查邮箱和密码");
+        toast.error(detail || "登录失败，请检查账号和密码");
       }
     } finally {
       setLoading(false);
@@ -185,13 +185,14 @@ export default function Login() {
                   htmlFor="email"
                   className="font-mono text-sm text-muted-foreground uppercase tracking-wider"
                 >
-                  邮箱地址
+                  账号或邮箱
                 </Label>
                 <div className="relative">
                   <Input
                     id="email"
-                    type="email"
-                    placeholder="your@email.com"
+                    type="text"
+                    autoComplete="username"
+                    placeholder="admin 或管理员邮箱"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -212,6 +213,7 @@ export default function Login() {
                   <Input
                     id="password"
                     type="password"
+                    autoComplete="current-password"
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -261,13 +263,7 @@ export default function Login() {
             {/* Footer */}
             <div className="mt-6 pt-5 border-t border-border text-center">
               <p className="text-base font-mono text-muted-foreground">
-                还没有账号？{" "}
-                <span
-                  className="text-primary font-bold cursor-pointer hover:underline"
-                  onClick={() => navigate("/register")}
-                >
-                  立即注册
-                </span>
+                管理员账号由部署方配置
               </p>
             </div>
           </div>
