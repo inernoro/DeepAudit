@@ -10,6 +10,8 @@ import AdminDashboard from "@/pages/AdminDashboard";
 import Account from "@/pages/Account";
 import AuditRules from "@/pages/AuditRules";
 import PromptManager from "@/pages/PromptManager";
+import { Navigate } from "react-router-dom";
+import { isCdsStaticReview } from "@/shared/config/runtime";
 import type { ReactNode } from 'react';
 
 export interface RouteConfig {
@@ -23,13 +25,13 @@ const routes: RouteConfig[] = [
   {
     name: "Agent审计",
     path: "/",
-    element: <AgentAudit />,
-    visible: true,
+    element: isCdsStaticReview ? <Navigate to="/projects" replace /> : <AgentAudit />,
+    visible: !isCdsStaticReview,
   },
   {
     name: "Agent审计任务",
     path: "/agent-audit/:taskId",
-    element: <AgentAudit />,
+    element: isCdsStaticReview ? <Navigate to="/projects" replace /> : <AgentAudit />,
     visible: false,
   },
   {

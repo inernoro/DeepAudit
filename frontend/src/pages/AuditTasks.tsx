@@ -39,6 +39,8 @@ import { calculateTaskProgress } from "@/shared/utils/utils";
 import { getAgentTasks, cancelAgentTask, getAgentFindings, type AgentTask, type AgentFinding } from "@/shared/api/agentTasks";
 import ReportExportDialog from "@/pages/AgentAudit/components/ReportExportDialog";
 
+import { isCdsStaticReview } from "@/shared/config/runtime";
+
 // Zombie task detection config
 const ZOMBIE_TIMEOUT = 180000; // 3 minutes without progress is potentially stuck
 
@@ -47,7 +49,7 @@ type TaskTab = "regular" | "agent";
 
 export default function AuditTasks() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<TaskTab>("agent"); // 默认显示Agent任务
+  const [activeTab, setActiveTab] = useState<TaskTab>(isCdsStaticReview ? "regular" : "agent");
 
   // 普通任务状态
   const [tasks, setTasks] = useState<AuditTask[]>([]);
@@ -77,7 +79,7 @@ export default function AuditTasks() {
 
   useEffect(() => {
     loadTasks();
-    loadAgentTasks();
+    if (!isCdsStaticReview) loadAgentTasks();
   }, []);
 
   // 加载Agent任务（支持静默更新，不触发 loading 状态）
@@ -350,7 +352,7 @@ export default function AuditTasks() {
       {/* Tab 切换 - 卡片式设计 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
         {/* Agent任务卡片 */}
-        <button
+        {!isCdsStaticReview && <button
           onClick={() => setActiveTab("agent")}
           className={`
             relative group text-left p-5 rounded-xl font-mono
@@ -424,7 +426,7 @@ export default function AuditTasks() {
           {activeTab === "agent" && (
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary to-transparent" />
           )}
-        </button>
+        </button>}
 
         {/* 快速扫描任务卡片 */}
         <button

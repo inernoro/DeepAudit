@@ -22,6 +22,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { getRuleSets } from "@/shared/api/rules";
 import { getPromptTemplates } from "@/shared/api/prompts";
+import { isCdsStaticReview } from "@/shared/config/runtime";
 import { getAgentTasks, type AgentTask } from "@/shared/api/agentTasks";
 
 export default function Dashboard() {
@@ -46,7 +47,7 @@ export default function Dashboard() {
         api.getProjectStats(),
         api.getProjects(),
         api.getAuditTasks(),
-        getAgentTasks({ limit: 10 })
+        isCdsStaticReview ? Promise.resolve<AgentTask[]>([]) : getAgentTasks({ limit: 10 })
       ]);
 
       if (results[0].status === 'fulfilled') {
@@ -524,12 +525,12 @@ export default function Dashboard() {
               <h3 className="section-title">快速操作</h3>
             </div>
             <div className="space-y-2">
-              <Link to="/agent-audit" className="block">
+              {!isCdsStaticReview && <Link to="/agent-audit" className="block">
                 <Button className="w-full justify-start cyber-btn-primary h-10">
                   <Bot className="w-4 h-4 mr-2" />
                   Agent 智能审计
                 </Button>
-              </Link>
+              </Link>}
               <Link to="/instant-analysis" className="block">
                 <Button variant="outline" className="w-full justify-start cyber-btn-outline h-10">
                   <Zap className="w-4 h-4 mr-2" />
