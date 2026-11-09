@@ -4,7 +4,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, field_validator, model_validator
 from datetime import datetime, timezone
 
 from app.api import deps
@@ -74,6 +74,16 @@ class AuditTaskSchema(BaseModel):
     branch_name: Optional[str] = None
     exclude_patterns: Optional[str] = None
     scan_config: Optional[str] = None
+
+    @field_validator('scan_config', mode='before')
+    @classmethod
+    def hide_task_binding(cls, value):
+        if value:
+            parsed = json.loads(value)
+            parsed.pop('_cds_llm_binding', None)
+            return json.dumps(parsed)
+        return value
+
     checkpoint_version: int = 0
     processed_files: int = 0
     failed_files: int = 0

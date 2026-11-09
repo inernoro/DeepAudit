@@ -79,6 +79,8 @@ async def run_static_task(task_id, factory, user_config, prepare_source, service
         config['scan_config'] = {**scan_config, **(config.get('scan_config') or {})}
         if not config['scan_config'].get('exclude_patterns'):
             config['scan_config']['exclude_patterns'] = json.loads(saved.exclude_patterns or '[]')
+        from app.services.cds_llm_binding import apply_binding
+        config = apply_binding(config)
         options = get_analysis_config(config)
         service = service_factory(user_config=config)
         if saved.checkpoint_version != 1:

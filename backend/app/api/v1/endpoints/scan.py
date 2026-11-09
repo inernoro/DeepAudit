@@ -1,7 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, Form, Depends, BackgroundTasks, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from typing import Any, List, Optional
+from typing import Annotated, Any, List, Optional
 from pydantic import BaseModel, Field
 from datetime import datetime, timezone
 import uuid
@@ -57,6 +57,11 @@ async def process_zip_task(task_id: str, file_path: str, db_session_factory, use
                           get_language_from_path)
 
 
+@router.get("/capabilities")
+async def scan_capabilities(current_user: User = Depends(deps.get_current_user)):
+    return {"cds_user_key_binding": 1}
+
+
 @router.post("/upload-zip")
 async def scan_zip(
     background_tasks: BackgroundTasks,
@@ -65,11 +70,14 @@ async def scan_zip(
     scan_config: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
+    cds_llm_binding: Annotated[Optional[str], Form()] = None,
 ) -> Any:
     """
     Upload and scan a ZIP file.
     上传ZIP文件并启动扫描，同时将ZIP文件保存到持久化存储
     """
+    from app.services.cds_llm_binding import seal_binding, FIELD
+    sealed_binding = seal_binding(cds_llm_binding, current_user)
     # Verify project exists
     project = await db.get(Project, project_id)
     if not project:
@@ -102,6 +110,8 @@ async def scan_zip(
         os.remove(file_path)
         raise HTTPException(status_code=400, detail="扫描配置无效")
 
+    if sealed_binding:
+        parsed_scan_config[FIELD] = sealed_binding
     # 保存ZIP文件到持久化存储
     await save_project_zip(project_id, file_path, file.filename)
     
